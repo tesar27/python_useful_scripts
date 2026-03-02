@@ -1,6 +1,17 @@
 import argparse
 from PIL import Image
 import os
+import logging
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s",
+    handlers=[
+        logging.FileHandler("compress_image.log"),  # Log to a file
+        logging.StreamHandler()  # Log to the console
+    ]
+)
 
 def compress_png(input_path, output_path, compression_level):
     """
@@ -10,6 +21,8 @@ def compress_png(input_path, output_path, compression_level):
     if img.mode in ("RGBA", "P"):
         img = img.convert("RGB")
     img.save(output_path, "PNG", optimize=True, compress_level=compression_level)
+    logging.info(f"Compressed PNG: {input_path} -> {output_path}")
+
 
 def compress_jpg(input_path, output_path, quality):
     """
@@ -19,6 +32,7 @@ def compress_jpg(input_path, output_path, quality):
     if img.mode in ("RGBA", "P"):
         img = img.convert("RGB")
     img.save(output_path, "JPEG", quality=quality)
+    logging.info(f"Compressed JPEG: {input_path} -> {output_path}")
 
 def compress_images_in_folder(input_folder, output_folder, compression_level):
     """
@@ -47,7 +61,7 @@ def compress_images_in_folder(input_folder, output_folder, compression_level):
             elif ext in [".jpg", ".jpeg"]:
                 compress_jpg(input_path, output_path, jpeg_quality)
             else:
-                print(f"Skipping unsupported file: {file_name}")
+                logging.warning(f"Skipping unsupported file: {file_name}")
                 continue
 
             # Add to PDF images list
@@ -56,15 +70,15 @@ def compress_images_in_folder(input_folder, output_folder, compression_level):
                 img = img.convert("RGB")
             pdf_images.append(img)
         except Exception as e:
-            print(f"Error processing {file_name}: {e}")
+            logging.error(f"Error processing {file_name}: {e}")
 
     # Create a PDF file from the compressed images
     if pdf_images:
         pdf_path = os.path.join(output_folder, "compressed_images.pdf")
         pdf_images[0].save(pdf_path, save_all=True, append_images=pdf_images[1:])
-        print(f"PDF created successfully at {pdf_path}")
+        logging.info(f"PDF created successfully at {pdf_path}")
     else:
-        print("No images to include in the PDF.")
+        logging.info("No images to include in the PDF.")
 
 def print_usage_info():
     """
@@ -93,6 +107,6 @@ if __name__ == "__main__":
     else:
         try:
             compress_images_in_folder(args.source, args.output, args.quality)
-            print(f"All images compressed successfully and saved to {args.output}")
+            logging.info(f"All images compressed successfully and saved to {args.output}")
         except Exception as e:
-            print(f"Error: {e}")
+            logging.error(f"Error: {e}")
