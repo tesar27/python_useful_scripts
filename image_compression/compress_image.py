@@ -3,15 +3,15 @@ from PIL import Image
 import os
 import logging
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(levelname)s - %(message)s",
-    handlers=[
-        logging.FileHandler("compress_image.log"),  # Log to a file
-        logging.StreamHandler()  # Log to the console
-    ]
-)
+# # Configure logging
+# logging.basicConfig(
+#     level=logging.INFO,
+#     format="%(asctime)s - %(levelname)s - %(message)s",
+#     handlers=[
+#         logging.FileHandler("compress_image.log"),  # Log to a file
+#         logging.StreamHandler()  # Log to the console
+#     ]
+# )
 
 def compress_png(input_path, output_path, compression_level):
     """
@@ -94,19 +94,22 @@ def print_usage_info():
       --info         Display information about the script and its usage.
     """)
 
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Compress all images in a folder and create a PDF.")
-    parser.add_argument("--source", help="Path to the source folder containing image files")
-    parser.add_argument("--output", default="output", help="Path to the output folder (default: 'output')")
-    parser.add_argument("--quality", default=2, type=int, choices=range(1, 11), help="Compression quality level (1-10). 1 = highest quality, 10 = maximum compression.")
-    parser.add_argument("--info", action="store_true", help="Display information about the script and its usage.")
-    args = parser.parse_args()
+# if __name__ == "__main__":
+#     parser = argparse.ArgumentParser(description="Compress all images in a folder and create a PDF.")
+#     parser.add_argument("--source", help="Path to the source folder containing image files")
+#     parser.add_argument("--output", default="output", help="Path to the output folder (default: 'output')")
+#     parser.add_argument("--quality", default=2, type=int, choices=range(1, 11), help="Compression quality level (1-10). 1 = highest quality, 10 = maximum compression.")
+#     parser.add_argument("--info", action="store_true", help="Display information about the script and its usage.")
+#     args = parser.parse_args()
 
-    if args.info or not args.source:
-        print_usage_info()
-    else:
-        try:
-            compress_images_in_folder(args.source, args.output, args.quality)
-            logging.info(f"All images compressed successfully and saved to {args.output}")
-        except Exception as e:
-            logging.error(f"Error: {e}")
+#     if args.info or not args.source:
+#         print_usage_info()
+#     else:
+#         try:
+#             compress_images_in_folder(args.source, args.output, args.quality)
+#             logging.info(f"All images compressed successfully and saved to {args.output}")
+#         except Exception as e:
+#             logging.error(f"Error: {e}")
+
+def run(source: str, output: str, quality: int):
+    compress_images_in_folder(source, output, quality)
