@@ -38,14 +38,14 @@ def confirm_prompt(question: str, default_yes: bool = True) -> bool:
         return default_yes
     return response == "y"
 
-def ensure_dependencies():
-    """Run the venv handler bash script to ensure dependencies are installed."""
-    script_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "python_venv_handler.sh")
-    if os.path.exists(script_path):
-        print("Ensuring dependencies are installed...")
-        subprocess.run(["bash", script_path], check=True)
-    else:
-        print("Warning: python_venv_handler.sh not found. Skipping dependency check.")
+# def ensure_dependencies():
+#     """Run the venv handler bash script to ensure dependencies are installed."""
+#     script_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "python_venv_handler.sh")
+#     if os.path.exists(script_path):
+#         print("Ensuring dependencies are installed...")
+#         subprocess.run(["bash", script_path], check=True)
+#     else:
+#         print("Warning: python_venv_handler.sh not found. Skipping dependency check.")
 
 def interactive_cli():
     """Start an interactive CLI program."""
