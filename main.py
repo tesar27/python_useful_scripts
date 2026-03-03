@@ -15,8 +15,8 @@ def image_compression(
 @app.command("interactive")
 def interactive():
     """Start interactive CLI mode."""
-    # your interactive logic here
-    typer.echo("Starting interactive mode...")
+    from interactive import interactive_cli
+    interactive_cli()
 
 @app.command("version")
 def version():

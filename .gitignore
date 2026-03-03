@@ -18,3 +18,7 @@ wheels
 pip-wheel-metadata
 share/python-wheels
 *.egg-info
+/chat
+/output
+*.log
+.vscode

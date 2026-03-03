@@ -1,69 +1,51 @@
 import os
 import subprocess
-import sys
-import ast
+import inspect
+from typing import Callable
 
-def list_modules():
-    """List all available modules in the current directory."""
-    modules = [name for name in os.listdir(os.getcwd()) if os.path.isdir(name) and os.path.exists(os.path.join(name, "main.py"))]
-    return modules
+from image_compression.compress_image import run as image_compression_run
 
-def get_module_arguments(module_name):
-    """Extract arguments from the module's main.py file."""
-    module_main_path = os.path.join(os.getcwd(), module_name, "main.py")
-    if not os.path.exists(module_main_path):
-        return []
+# Registry: module name -> run() function
+# Add new modules here as you create them
+MODULES: dict[str, Callable] = {
+    "image_compression": image_compression_run,
+}
 
-    with open(module_main_path, "r") as f:
-        tree = ast.parse(f.read(), filename=module_main_path)
+def list_modules() -> list[str]:
+    """Return available module names."""
+    return list(MODULES.keys())
 
-    arguments = []
-    for node in ast.walk(tree):
-        if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute):
-            if node.func.attr == "add_argument":
-                arg_name = None
-                default_value = None
-                for kw in node.keywords:
-                    if kw.arg == "dest":
-                        arg_name = kw.value.value if isinstance(kw.value, ast.Constant) else None
-                    if kw.arg == "default":
-                        default_value = kw.value.value if isinstance(kw.value, ast.Constant) else None
-                if arg_name:
-                    arguments.append((arg_name, default_value))
-    return arguments
+def get_module_arguments(run_func: Callable) -> list[tuple[str, any, bool, type]]:
+    """
+    Inspect a run() function and return its parameters as:
+    [(name, default_value, is_required, type), ...]
+    """
+    sig = inspect.signature(run_func)
+    hints = inspect.get_annotations(run_func)
+    args = []
+    for name, param in sig.parameters.items():
+        required = param.default is inspect.Parameter.empty
+        default = None if required else param.default
+        arg_type = hints.get(name, str)
+        args.append((name, default, required, arg_type))
+    return args
 
-def setup_and_run_module(module_name, args):
-    module_path = os.path.join(os.getcwd(), module_name)
-    venv_path = os.path.join(module_path, "venv")
-    requirements_file = os.path.join(module_path, "requirements.txt")
+def confirm_prompt(question: str, default_yes: bool = True) -> bool:
+    """Y/n or y/N prompt. Capital letter = default (press Enter)."""
+    hint = "[Y/n]" if default_yes else "[y/N]"
+    response = input(f"{question} {hint}: ").strip().lower()
+    if not response:
+        return default_yes
+    return response == "y"
 
-    if not os.path.exists(module_path):
-        print(f"Module '{module_name}' does not exist.")
-        return
-
-    # Create virtual environment if it doesn't exist
-    if not os.path.exists(venv_path):
-        print(f"Creating virtual environment for {module_name}...")
-        subprocess.run([sys.executable, "-m", "venv", venv_path])
-
-    # Install dependencies
-    pip_path = os.path.join(venv_path, "bin", "pip")
-    if os.name == "nt":  # Windows compatibility
-        pip_path = os.path.join(venv_path, "Scripts", "pip")
-
-    if os.path.exists(requirements_file):
-        print(f"Installing dependencies for {module_name}...")
-        subprocess.run([pip_path, "install", "-r", requirements_file])
+def ensure_dependencies():
+    """Run the venv handler bash script to ensure dependencies are installed."""
+    script_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "python_venv_handler.sh")
+    if os.path.exists(script_path):
+        print("Ensuring dependencies are installed...")
+        subprocess.run(["bash", script_path], check=True)
     else:
-        print(f"No requirements.txt found for {module_name}.")
-
-    # Run the module's main script
-    module_main = os.path.join(module_path, "main.py")
-    if os.path.exists(module_main):
-        print(f"Running {module_name}...")
-        subprocess.run([os.path.join(venv_path, "bin", "python"), module_main, *args])
-    else:
-        print(f"No main.py found in {module_name}.")
+        print("Warning: python_venv_handler.sh not found. Skipping dependency check.")
 
 def interactive_cli():
     """Start an interactive CLI program."""
@@ -72,77 +54,64 @@ def interactive_cli():
         print("No modules available.")
         return
 
-    print("Available modules:")
+    print("\nAvailable modules:")
     for i, module in enumerate(modules, 1):
-        print(f"{i}. {module}")
+        print(f"  {i}. {module}")
 
-    proceed = input("Do you want to proceed with CLI interactively? (1) Yes (2) No: ")
-    if proceed.strip() != "1":
-        print("Exiting program.")
+    # Default is Yes — most likely user invoked interactive on purpose
+    if not confirm_prompt("\nDo you want to proceed interactively?", default_yes=True):
+        print("Exiting.")
         return
 
     while True:
         try:
-            choice = int(input("Select the module you want to run (number): "))
+            choice = int(input("\nSelect a module (number): "))
             if 1 <= choice <= len(modules):
                 selected_module = modules[choice - 1]
                 break
             else:
-                print("Invalid choice. Please select a valid module number.")
+                print(f"  Invalid choice. Enter a number between 1 and {len(modules)}.")
         except ValueError:
-            print("Invalid input. Please enter a number.")
+            print("  Invalid input. Please enter a number.")
 
     print("\nAvailable modules:")
     for i, module in enumerate(modules, 1):
         tick = "✔" if module == selected_module else " "
-        print(f"[{tick}] {i}. {module}")
+        print(f"  [{tick}] {i}. {module}")
 
-    confirm = input(f"Proceed with this choice ({selected_module})? (1) Yes (2) No: ")
-    if confirm.strip() != "1":
-        print("Exiting program.")
+    # Default is Yes — user just picked the module, likely wants to proceed
+    if not confirm_prompt(f"\nProceed with '{selected_module}'?", default_yes=True):
+        print("Exiting.")
         return
 
-    print(f"\nArguments required for {selected_module}:")
-    print("(Provide values for the following arguments. Press Enter to use defaults if available.)")
+    run_func = MODULES[selected_module]
+    module_arguments = get_module_arguments(run_func)
 
-    module_arguments = get_module_arguments(selected_module)
-    args = []
-    for arg_name, default_value in module_arguments:
-        user_value = input(f"{arg_name} (default: {default_value}): ").strip()
-        args.append(f"--{arg_name}={user_value}" if user_value else f"--{arg_name}={default_value}" if default_value else f"--{arg_name}")
+    print(f"\nConfiguring arguments for '{selected_module}':")
+    print("  (Press Enter to use the default value shown in brackets.)\n")
 
-    setup_and_run_module(selected_module, args)
+    kwargs = {}
+    for arg_name, default_value, required, arg_type in module_arguments:
+        prompt = f"  {arg_name} ({'required' if required else f'{default_value}'}):" \
+                 if required else f"  {arg_name} [{default_value}]: "
 
-def print_usage_info():
-    """
-    Print usage information about the script and its flags.
-    """
-    print("""
-    Usage: python main.py [OPTIONS]
+        while True:
+            user_value = input(prompt).strip()
+            if user_value:
+                try:
+                    kwargs[arg_name] = arg_type(user_value)
+                    break
+                except (ValueError, TypeError):
+                    print(f"  Expected type {arg_type.__name__}. Try again.")
+            elif not required:
+                kwargs[arg_name] = default_value
+                break
+            else:
+                print(f"  '{arg_name}' is required. Please provide a value.")
 
-    Options:
-      --module      Specify the module to run directly.
-      --args        Arguments to pass to the module (use key=value pairs).
-      --info        Display information about the script and available modules.
-    """)
-
-if __name__ == "__main__":
-    if len(sys.argv) == 1:
-        print_usage_info()
-        interactive_cli()
-    else:
-        if "--info" in sys.argv:
-            print_usage_info()
-            print("\nAvailable modules:")
-            for i, module in enumerate(list_modules(), 1):
-                print(f"{i}. {module}")
-        elif "--module" in sys.argv:
-            try:
-                module_index = sys.argv.index("--module") + 1
-                module_name = sys.argv[module_index]
-                module_args = sys.argv[module_index + 1:]
-                setup_and_run_module(module_name, module_args)
-            except IndexError:
-                print("Error: No module specified after --module.")
-        else:
-            print("Invalid arguments. Use --info for usage information.")
+    print(f"\nRunning '{selected_module}'...\n")
+    try:
+        run_func(**kwargs)
+        print(f"\n✔ '{selected_module}' completed successfully.")
+    except Exception as e:
+        print(f"\n✘ Error running '{selected_module}': {e}")
