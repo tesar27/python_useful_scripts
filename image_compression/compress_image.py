@@ -34,7 +34,7 @@ def compress_jpg(input_path, output_path, quality):
     img.save(output_path, "JPEG", quality=quality)
     logging.info(f"Compressed JPEG: {input_path} -> {output_path}")
 
-def compress_images_in_folder(input_folder, output_folder, compression_level):
+def compress_images_in_folder(input_folder, output_folder, compression_level, sort_by='date'):
     """
     Compress all images in the input folder and save them to the output folder.
     Also creates a PDF file from the compressed images.
@@ -46,7 +46,18 @@ def compress_images_in_folder(input_folder, output_folder, compression_level):
     jpeg_quality = max(10, min(100, 100 - (compression_level * 10)))
     png_compress_level = max(0, min(9, compression_level))
 
-    for file_name in os.listdir(input_folder):
+    # Determine sort key
+    if sort_by == 'name':
+        sort_key = None
+    elif sort_by == 'date':
+        sort_key = lambda f: os.path.getmtime(os.path.join(input_folder, f))
+    elif sort_by == 'size':
+        sort_key = lambda f: os.path.getsize(os.path.join(input_folder, f))
+    else:
+        sort_key = lambda f: os.path.getmtime(os.path.join(input_folder, f))  # Default to date
+
+
+    for file_name in sorted(os.listdir(input_folder), key=sort_key):
         input_path = os.path.join(input_folder, file_name)
         if not os.path.isfile(input_path):
             continue
@@ -111,5 +122,5 @@ def print_usage_info():
 #         except Exception as e:
 #             logging.error(f"Error: {e}")
 
-def run(source: str, output: str, quality: int):
-    compress_images_in_folder(source, output, quality)
+def run(source: str, output: str, quality: int, sortby: str = 'date'):
+    compress_images_in_folder(source, output, quality, sort_by=sortby)
